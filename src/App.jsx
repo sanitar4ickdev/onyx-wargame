@@ -32,17 +32,13 @@ const INITIAL_NODES = {
 };
 
 const EDGES = [
-  // Львов имеет только одну связь через Винницу
   ['lviv', 'vinnytsia'], 
-  
-  // Внутренние линии Украины
   ['vinnytsia', 'kyiv'], ['vinnytsia', 'odesa'],
   ['kyiv', 'chernihiv'], ['kyiv', 'poltava'], ['chernihiv', 'sumy'],
   ['sumy', 'kharkiv'], ['kharkiv', 'poltava'], ['kharkiv', 'donbas'],
   ['poltava', 'dnipro'], ['dnipro', 'donbas'], ['dnipro', 'zaporizhzhia'],
   ['zaporizhzhia', 'donbas'], ['zaporizhzhia', 'kherson'], ['kherson', 'odesa'],
   
-  // Маршруты наступления РФ
   ['gomel', 'kyiv'], ['gomel', 'chernihiv'],
   ['kursk', 'sumy'],
   ['belgorod', 'kharkiv'],
@@ -59,7 +55,6 @@ const UNIT_STATS = {
 };
 
 const INITIAL_UNITS = [
-  // СИЛЫ УКРАИНЫ (ВСУ)
   { id: 'u_72', name: '72-я ОМБр', faction: 'ukr', type: 'mech', location: 'kyiv', hp: 100, org: 100, exp: 40, general: 'sirsky', inCombat: false, outOfSupplyDays: 0 },
   { id: 'u_1', name: '1-я ОТБр', faction: 'ukr', type: 'tank', location: 'chernihiv', hp: 100, org: 100, exp: 50, general: 'zaluzhny', inCombat: false, outOfSupplyDays: 0 },
   { id: 'u_93', name: '93-я ОМБр', faction: 'ukr', type: 'mech', location: 'kharkiv', hp: 100, org: 100, exp: 65, general: 'sodol', inCombat: false, outOfSupplyDays: 0 },
@@ -68,7 +63,6 @@ const INITIAL_UNITS = [
   { id: 'u_55', name: '55-я ОАБр', faction: 'ukr', type: 'arty', location: 'zaporizhzhia', hp: 100, org: 100, exp: 45, general: null, inCombat: false, outOfSupplyDays: 0 },
   { id: 'u_80', name: '80-я ОДШБр', faction: 'ukr', type: 'inf', location: 'vinnytsia', hp: 100, org: 100, exp: 60, general: 'sirsky', inCombat: false, outOfSupplyDays: 0 },
   
-  // СИЛЫ РОССИИ (ВСРФ)
   { id: 'r_1gta', name: '1-я Гв. Танковая', faction: 'rus', type: 'tank', location: 'belgorod', hp: 100, org: 100, exp: 30, general: null, inCombat: false, outOfSupplyDays: 0 },
   { id: 'r_20ca', name: '20-я Общевойсковая', faction: 'rus', type: 'mech', location: 'kursk', hp: 100, org: 100, exp: 25, general: null, inCombat: false, outOfSupplyDays: 0 },
   { id: 'r_vadv', name: '76-я ДШД', faction: 'rus', type: 'inf', location: 'gomel', hp: 100, org: 100, exp: 50, general: null, inCombat: false, outOfSupplyDays: 0 },
@@ -97,7 +91,6 @@ const HOI_THEME = {
   rusRed: '#7f1d1d'
 };
 
-// --- КОМПОНЕНТ APP-6 НАТО ---
 const NATOSymbol = ({ type, faction, isSelected, onClick, inCombat }) => {
   const isUkr = faction === 'ukr';
   const fillColor = isUkr ? HOI_THEME.ukrBlue : HOI_THEME.rusRed;
@@ -115,9 +108,7 @@ const NATOSymbol = ({ type, faction, isSelected, onClick, inCombat }) => {
       {type === 'mech' && <ellipse cx="0" cy="0" rx="6" ry="3" stroke="#fff" strokeWidth="1.5" fill="none" />}
       {type === 'tank' && <ellipse cx="0" cy="0" rx="8" ry="4" stroke="#fff" strokeWidth="1.5" fill="none" />}
       {type === 'arty' && <circle cx="0" cy="0" r="3" fill="#fff" />}
-      
       {type === 'tdf' && <text x="0" y="8" fontSize="7" fill="#fff" textAnchor="middle" fontWeight="bold">T</text>}
-      
       {inCombat && <circle cx="15" cy="-10" r="4" fill="#ef4444" className="animate-pulse" />}
     </g>
   );
@@ -132,13 +123,8 @@ export default function Game() {
     manpower: 195000, 
     nationalWill: 90, 
     weather: 'Ясно',
-    
-    // Авиация
     airForce: { ukr: 150, rus: 400, ukrAirSuperiority: 40, rusAirSuperiority: 60 },
-    
-    // Ракеты
     missiles: { ukr: 8, rus: 24 },
-    
     nodes: JSON.parse(JSON.stringify(INITIAL_NODES)),
     units: JSON.parse(JSON.stringify(INITIAL_UNITS)),
     mobQueue: [],
@@ -180,11 +166,9 @@ export default function Game() {
     }));
   };
 
-  // --- МЕХАНИКА РАСЧЕТА СНАБЖЕНИЯ ---
   const calculateSupplyOfNodes = (currentNodes) => {
     const supplySources = ['kyiv', 'lviv'];
     const suppliedNodes = new Set();
-    
     const queue = [...supplySources];
     const visited = new Set(supplySources);
 
@@ -210,26 +194,25 @@ export default function Game() {
     return suppliedNodes;
   };
 
-  // --- ХОД СИМУЛЯЦИИ ---
   const executeTurn = () => {
     let nextState = JSON.parse(JSON.stringify(gameState));
     let nextOrders = { ...uiState.orders };
-    let newLogs = [`\n=== ДЕНЬ ${nextState.day + 1} (${nextState.weather.toUpperCase()}) ===`];
 
-    // 1. Погода и её влияние
+    // ФИКС: Сначала генерируем погоду для НОВОГО хода
     const randWeather = WEATHER_TYPES[Math.floor(Math.random() * WEATHER_TYPES.length)];
     nextState.weather = randWeather;
+
+    // Пишем её в заголовок лога — теперь ничего не опаздывает!
+    let newLogs = [`\n=== ДЕНЬ ${nextState.day + 1} (${nextState.weather.toUpperCase()}) ===`];
+
     let weatherSpeedPenalty = 1;
-    let weatherSupplyPenalty = 0;
     if (randWeather === 'Распутица') {
       weatherSpeedPenalty = 0.4;
-      weatherSupplyPenalty = 20;
       newLogs.push(`[ПОГОДА] На дорогах распутица! Скорость марша и пропускная способность снабжения снижены.`);
     } else if (randWeather === 'Дождь' || randWeather === 'Снег') {
       weatherSpeedPenalty = 0.7;
     }
 
-    // 2. Владение территориями и Фронт
     Object.keys(nextState.nodes).forEach(nodeId => {
       const node = nextState.nodes[nodeId];
       const nodeUnits = nextState.units.filter(u => u.location === nodeId);
@@ -251,7 +234,6 @@ export default function Game() {
       }
     });
 
-    // 3. Производство снаряжения промышленными центрами
     let factoryOutput = 0;
     const prodCenters = ['kyiv', 'lviv', 'dnipro', 'kharkiv'];
     prodCenters.forEach(city => {
@@ -269,7 +251,6 @@ export default function Game() {
 
     const suppliedUkrNodes = calculateSupplyOfNodes(nextState.nodes);
 
-    // 4. Движение и пополнение частей
     nextState.units.forEach(unit => {
       const order = nextOrders[unit.id];
       
@@ -299,7 +280,6 @@ export default function Game() {
 
       if (!unit.inCombat && unit.outOfSupplyDays === 0) {
         let healMultiplier = unit.location === 'kyiv' || unit.location === 'lviv' ? 3 : 1;
-        
         if (unit.hp < 100 && nextState.manpower > 1000 && nextState.equipment > 300) {
           unit.hp = Math.min(100, unit.hp + 5 * healMultiplier);
           nextState.manpower -= 500;
@@ -309,7 +289,6 @@ export default function Game() {
       }
     });
 
-    // 5. Партизанская активность
     Object.keys(nextState.nodes).forEach(nodeId => {
       const node = nextState.nodes[nodeId];
       if (node.owner === 'rus' && !node.enemyCore) {
@@ -321,7 +300,6 @@ export default function Game() {
       }
     });
 
-    // 6. Улучшенный ИИ Противника
     nextState.units.filter(u => u.faction === 'rus').forEach(ru => {
       if (ru.inCombat) return;
 
@@ -354,7 +332,6 @@ export default function Game() {
 
     nextState.units.forEach(u => u.inCombat = false);
 
-    // 7. РАЗРЕШЕНИЕ БОЕВ (Авто-бой)
     Object.keys(nextState.nodes).forEach(nodeId => {
       const forces = nextState.units.filter(u => u.location === nodeId);
       const ukr = forces.filter(u => u.faction === 'ukr');
@@ -383,7 +360,7 @@ export default function Game() {
           
           if (isDefender) {
             pwr += stats.def;
-            pwr *= (1 + INITIAL_NODES[nodeId].fort / 10);
+            pwr *= (1 + nextState.nodes[nodeId].fort / 10);
             if (INITIAL_NODES[nodeId].terrain === 'urban') pwr *= 1.3;
           }
           return sum + pwr;
@@ -399,10 +376,10 @@ export default function Game() {
         newLogs.push(`  Боевой потенциал: ВСУ ${Math.round(ukrPower)} | ВС РФ ${Math.round(rusPower)}`);
 
         if (ukrRatio < 0.33 && !isRusNative) {
-           newLogs.push(`  [ОБОРОНА РФ] Позиции удержаны. Контрнаступление ВСУ захлебнулось (требуется соотношение сил 3:1).`);
+           newLogs.push(`  [ОБОРОНА РФ] Позиции удержаны. Контрнаступление ВСУ захлебнулось.`);
            ukr.forEach(u => { u.org = Math.max(0, u.org - 30); u.hp = Math.max(10, u.hp - 10); });
         } else if (rusRatio < 0.33 && isRusNative) {
-           newLogs.push(`  [ОБОРОНА ВСУ] Рубежи неприкосновенны. Массированная атака РФ отбита (требуется соотношение сил 3:1).`);
+           newLogs.push(`  [ОБОРОНА ВСУ] Рубежи неприкосновенны. Массированная атака РФ отбита.`);
            rus.forEach(u => { u.org = Math.max(0, u.org - 30); u.hp = Math.max(10, u.hp - 10); });
         } else {
            ukr.forEach(u => {
@@ -431,7 +408,7 @@ export default function Game() {
               newLogs.push(`  < ${u.name} отступила под давлением в ${INITIAL_NODES[retreatTarget].name}.`);
             } else {
               u.hp = 0;
-              newLogs.push(`  ☠️ КОТЕЛ: ${u.name} полностью окружена и уничтожена в ${INITIAL_NODES[nodeId].name}! Захвачено трофейное имущество.`);
+              newLogs.push(`  ☠️ КОТЕЛ: ${u.name} полностью окружена и уничтожена в ${INITIAL_NODES[nodeId].name}!`);
               if (u.faction === 'rus') nextState.equipment += 1500;
               else nextState.nationalWill = Math.max(0, nextState.nationalWill - 10);
             }
@@ -442,7 +419,6 @@ export default function Game() {
 
     nextState.units = nextState.units.filter(u => u.hp > 0);
 
-    // Мобилизация
     const updatedQueue = [];
     nextState.mobQueue.forEach(job => {
       if (job.daysLeft <= 1) {
@@ -454,14 +430,13 @@ export default function Game() {
     });
     nextState.mobQueue = updatedQueue;
 
-    // Случайные удары противника по заводам
     if (Math.random() > 0.6) {
        const targets = ['kyiv', 'kharkiv', 'dnipro', 'lviv'];
        const strikeCity = targets[Math.floor(Math.random() * targets.length)];
        const cityNode = nextState.nodes[strikeCity];
        if (cityNode && cityNode.owner === 'ukr') {
           cityNode.infrastructure = Math.max(20, (cityNode.infrastructure || 100) - 25);
-          newLogs.push(`[УДАР ВКС РФ] Ракетный налет повредил производственные мощности в г. ${cityNode.name}. Экономика частично дестабилизирована.`);
+          newLogs.push(`[УДАР ВКС РФ] Ракетный налет повредил производственные мощности в г. ${cityNode.name}.`);
        }
     }
 
@@ -473,7 +448,7 @@ export default function Game() {
     nextState.logs = [...newLogs, ...nextState.logs].slice(0, 60);
 
     setGameState(nextState);
-    setUiState(prev => ({ ...prev, orders: {} }));
+    setUiState(prev => ({ ...prev, orders: nextOrders }));
   };
 
   const calculateVP = () => {
@@ -490,17 +465,11 @@ export default function Game() {
 
   const { ukrVp, rusVp } = calculateVP();
 
-  // --- ИСПРАВЛЕННАЯ ЛОГИКА ТРИГГЕРА ПОБЕДЫ ---
   const checkVictoryStatus = () => {
-    // 1. Поражение Украины (РФ набрала критическое число VP, либо нация деморализована)
     if (rusVp >= 120) return 'defeat'; 
     if (gameState.nationalWill <= 0) return 'defeat';
     if (gameState.units.filter(u => u.faction === 'ukr').length === 0) return 'defeat';
     
-    // 2. Условия Победы Украины (Сбалансированное и надежное):
-    // а) Чтобы исключить автопобеду на 1-м ходу, вводим порог минимального количества дней симуляции (например, 7 ходов).
-    // б) Проверяем, освобождены ли все ключевые города (Киев, Харьков, Мариуполь/Донбасс, Херсон, Одесса).
-    // в) Все вражеские силы вытеснены с подконтрольной территории Украины.
     const activeRusseInUkr = gameState.units.some(
       u => u.faction === 'rus' && !INITIAL_NODES[u.location].enemyCore
     );
@@ -520,7 +489,6 @@ export default function Game() {
 
   const gameStatus = checkVictoryStatus();
 
-  // --- ДЕЙСТВИЯ СИМУЛЯТОРА ---
   const handleAssignGeneral = (unitId, genId) => {
     setGameState(prev => {
       const ns = { ...prev };
@@ -552,7 +520,6 @@ export default function Game() {
     setGameState(prev => {
       const ns = { ...prev };
       ns.missiles.ukr -= 1;
-      
       ns.nodes[targetId].fort = Math.max(0, ns.nodes[targetId].fort - 15);
       const unitsInTarget = ns.units.filter(u => u.location === targetId && u.faction === 'rus');
       unitsInTarget.forEach(u => {
@@ -560,7 +527,7 @@ export default function Game() {
         u.org = Math.max(10, u.org - 25);
       });
 
-      ns.logs = [`[РАКЕТНЫЙ УДАР] Нанесен высокоточный ракетный удар по передовым позициям противника в ${node.name}. Повреждена техника.`, ...ns.logs];
+      ns.logs = [`[РАКЕТНЫЙ УДАР] Нанесен высокоточный ракетный удар по передовым позициям противника в ${node.name}.`, ...ns.logs];
       return ns;
     });
   };
@@ -572,7 +539,7 @@ export default function Game() {
       ns.pp -= 20;
       if (missionType === 'sup') {
          ns.airForce.ukrAirSuperiority = Math.min(100, ns.airForce.ukrAirSuperiority + 15);
-         ns.logs = [`[ВВС] Силы ВВС Украины перенаправлены на перехват и патрулирование. Достигнут паритет.`, ...ns.logs];
+         ns.logs = [`[ВВС] Силы ВВС Украины перенаправлены на перехват и патрулирование.`, ...ns.logs];
       } else if (missionType === 'strike') {
          ns.units.filter(u => u.faction === 'rus').forEach(u => {
             if (Math.random() > 0.5) { u.hp = Math.max(10, u.hp - 15); u.org = Math.max(10, u.org - 20); }
@@ -609,7 +576,6 @@ export default function Game() {
 
   const handlePolicy = (id) => {
     if (gameState.pp < 50) return alert('Нужно 50 PP!');
-    
     setGameState(prev => {
       const ns = {...prev};
       ns.pp -= 50;
@@ -641,10 +607,8 @@ export default function Game() {
     const suppliedNodes = calculateSupplyOfNodes(gameState.nodes);
     
     return (
-      <div className="relative w-full h-[530px] bg-[#1a1c18] border-2 border-black overflow-hidden shadow-inner">
-        <svg viewBox="0 0 900 700" className="w-full h-full absolute inset-0">
-          
-          {/* Границы государств */}
+      <div className="relative w-full flex-grow bg-[#1a1c18] border-b-2 border-black overflow-auto shadow-inner flex items-center justify-center min-h-0">
+        <svg width="900" height="700" viewBox="0 0 900 700" className="select-none shrink-0">
           <path 
             d="M -10,90 Q 300,90 500,100 T 680,180 T 720,400 Q 750,500 800,700" 
             stroke="rgba(239, 68, 68, 0.4)" strokeWidth="4" strokeDasharray="12,8" fill="none" 
@@ -657,7 +621,6 @@ export default function Game() {
           <text x="250" y="50" fill="rgba(239, 68, 68, 0.2)" fontSize="24" fontWeight="bold" letterSpacing="8" transform="rotate(-5 250 50)">БЕЛАРУСЬ</text>
           <text x="750" y="80" fill="rgba(239, 68, 68, 0.2)" fontSize="24" fontWeight="bold" letterSpacing="8" transform="rotate(25 750 80)">РОССИЯ</text>
 
-          {/* Логистические линии с индикатором Снабжения */}
           {EDGES.map((edge, idx) => {
             const n1 = gameState.nodes[edge[0]];
             const n2 = gameState.nodes[edge[1]];
@@ -674,27 +637,17 @@ export default function Game() {
             );
           })}
 
-          {/* Узлы (Линия фронта подсвечивается по владельцам) */}
           {Object.values(gameState.nodes).map(node => {
              const isSelected = uiState.selectedNode?.id === node.id;
              const isSupplied = suppliedNodes.has(node.id);
-             
              const borderGlow = node.owner === 'ukr' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(239, 68, 68, 0.4)';
 
              return (
                <g key={node.id} transform={`translate(${node.x}, ${node.y})`} onClick={() => setUiState({...uiState, selectedNode: node, selectedUnit: null})} className="cursor-pointer">
                  <circle r="22" fill="none" stroke={borderGlow} strokeWidth="2" strokeDasharray="3,3" />
-                 
                  <circle r={isSelected ? "14" : "10"} fill="#1e293b" stroke={isSelected ? HOI_THEME.accent : (node.owner === 'ukr' ? '#1e3a8a' : '#7f1d1d')} strokeWidth="2.5" />
-                 
-                 {node.vp > 0 && (
-                    <circle r="4" cy="-14" fill={HOI_THEME.accent} />
-                 )}
-
-                 {node.owner === 'ukr' && !isSupplied && (
-                    <path d="M-5,-16 L5,-16 L0,-24 Z" fill="#f59e0b" />
-                 )}
-
+                 {node.vp > 0 && <circle r="4" cy="-14" fill={HOI_THEME.accent} />}
+                 {node.owner === 'ukr' && !isSupplied && <path d="M-5,-16 L5,-16 L0,-24 Z" fill="#f59e0b" />}
                  <text y="28" textAnchor="middle" fill={isSelected ? HOI_THEME.accent : "#94a3b8"} className="text-[9px] font-bold font-mono bg-black" style={{ textShadow: '1px 1px 2px black' }}>
                    {node.name.toUpperCase()}
                  </text>
@@ -702,7 +655,6 @@ export default function Game() {
              );
           })}
 
-          {/* Подразделения */}
           {Object.values(gameState.nodes).map(node => {
             const nodeUnits = gameState.units.filter(u => u.location === node.id);
             return nodeUnits.map((unit, idx) => {
@@ -720,7 +672,6 @@ export default function Game() {
                      isSelected={isSelected} 
                      onClick={(e) => { e.stopPropagation(); setUiState({...uiState, selectedUnit: unit, selectedNode: node}); }}
                    />
-                   
                    {order && (
                       <line 
                         x1={0} y1={0} 
@@ -738,7 +689,6 @@ export default function Game() {
     );
   };
 
-  // Конец игры
   if (gameStatus !== 'active') {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
@@ -760,10 +710,10 @@ export default function Game() {
   }
 
   return (
-    <div className="min-h-screen font-sans flex flex-col select-none" style={{ backgroundColor: HOI_THEME.bg, color: HOI_THEME.text }}>
+    <div className="h-screen w-screen font-sans flex flex-col select-none overflow-hidden" style={{ backgroundColor: HOI_THEME.bg, color: HOI_THEME.text }}>
       
-      {/* TOPBAR (Hearts of Iron IV Style) */}
-      <div className="h-14 flex items-center px-4 shadow-md z-10" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border, borderBottomWidth: '2px' }}>
+      {/* TOPBAR */}
+      <div className="h-14 min-h-[3.5rem] flex items-center px-4 shadow-md z-10 shrink-0" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border, borderBottomWidth: '2px' }}>
         <div className="w-12 h-10 border flex items-center justify-center font-bold text-lg mr-6 shadow-inner" style={{ backgroundColor: HOI_THEME.panelLighter, borderColor: HOI_THEME.border, color: HOI_THEME.accent }}>
            UA
         </div>
@@ -795,18 +745,19 @@ export default function Game() {
         </div>
       </div>
 
-      <div className="flex flex-grow overflow-hidden">
+      {/* ОСНОВНОЙ КОНТЕНТ (ФУЛЛСКРИН СЕТКА) */}
+      <div className="flex flex-row flex-grow h-0 overflow-hidden w-full">
         
-        {/* LEFT PANEL: Войска */}
-        <div className="w-64 border-r-2 flex flex-col" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border }}>
-          <div className="p-3 text-xs font-bold uppercase tracking-widest border-b flex justify-between" style={{ borderColor: HOI_THEME.border, backgroundColor: HOI_THEME.panelLighter }}>
+        {/* ЛЕВАЯ ПАНЕЛЬ: СПИСОК ВОЙСК */}
+        <div className="w-64 border-r-2 flex flex-col h-full shrink-0" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border }}>
+          <div className="p-3 text-xs font-bold uppercase tracking-widest border-b flex justify-between shrink-0" style={{ borderColor: HOI_THEME.border, backgroundColor: HOI_THEME.panelLighter }}>
              <span>Сухопутные силы</span>
              <span className="text-blue-400 font-mono">x{gameState.units.filter(u => u.faction === 'ukr').length}</span>
           </div>
           <div className="flex-grow overflow-y-auto p-2 space-y-1 bg-[#151613]">
              {gameState.units.filter(u => u.faction === 'ukr').map(u => (
                 <div key={u.id} 
-                     onClick={() => setUiState({...uiState, selectedUnit: u, selectedNode: INITIAL_NODES[u.location]})} 
+                     onClick={() => setUiState({...uiState, selectedUnit: u, selectedNode: gameState.nodes[u.location]})}
                      className={`p-2 text-xs flex justify-between items-center cursor-pointer border ${uiState.selectedUnit?.id === u.id ? 'border-amber-500 bg-amber-900/20' : 'border-[#333] hover:border-gray-500 bg-[#1a1b18]'}`}>
                    <div>
                      <span className="font-bold block text-[#eee]">{u.name}</span>
@@ -821,11 +772,9 @@ export default function Game() {
           </div>
         </div>
 
-        {/* CENTER: MAP & LOGS */}
-        <div className="flex-grow flex flex-col min-w-0">
-          
-          {/* Вкладки сверху */}
-          <div className="flex gap-1 p-2" style={{ backgroundColor: HOI_THEME.panel }}>
+        {/* ЦЕНТР: КАРТА И ЛОГИ */}
+        <div className="flex-grow flex flex-col min-w-0 h-full overflow-hidden">
+          <div className="flex gap-1 p-2 shrink-0" style={{ backgroundColor: HOI_THEME.panel }}>
              <button onClick={() => setUiState({...uiState, activeTab: 'map'})} className={`px-4 py-1 text-xs font-bold uppercase border ${uiState.activeTab==='map' ? 'bg-[#3e413c] text-white border-gray-500' : 'bg-[#1a1b18] text-gray-500 border-black'}`}>Карта ТВД</button>
              <button onClick={() => setUiState({...uiState, activeTab: 'politics'})} className={`px-4 py-1 text-xs font-bold uppercase border ${uiState.activeTab==='politics' ? 'bg-[#3e413c] text-white border-gray-500' : 'bg-[#1a1b18] text-gray-500 border-black'}`}>Штаб / Решения</button>
              <button onClick={() => setUiState({...uiState, activeTab: 'air'})} className={`px-4 py-1 text-xs font-bold uppercase border ${uiState.activeTab==='air' ? 'bg-[#3e413c] text-white border-gray-500' : 'bg-[#1a1b18] text-gray-500 border-black'}`}>ВВС & ПВО</button>
@@ -834,7 +783,7 @@ export default function Game() {
           {uiState.activeTab === 'map' ? (
             <>
               {renderMap()}
-              <div className="h-44 border-t-2 p-3 overflow-y-auto font-mono text-[11px] leading-relaxed shadow-inner" style={{ backgroundColor: '#0a0a0a', borderColor: HOI_THEME.border, color: '#4ade80' }}>
+              <div className="h-48 min-h-[12rem] p-3 overflow-y-auto font-mono text-[11px] leading-relaxed shadow-inner shrink-0" style={{ backgroundColor: '#0a0a0a', borderColor: HOI_THEME.border, color: '#4ade80' }}>
                  {gameState.logs.map((log, i) => <pre key={i} className="whitespace-pre-wrap opacity-90">{log}</pre>)}
               </div>
             </>
@@ -847,17 +796,17 @@ export default function Game() {
                      <p className="text-xs text-gray-400">Призвать дополнительные 100,000 резервистов в людской пул для пополнения потерь.</p>
                   </button>
                   <button onClick={() => handlePolicy('lendlease')} className="p-4 bg-[#252723] hover:bg-[#2d302b] border border-gray-700 text-left transition-colors">
-                     <h3 className="text-lg font-bold text-white mb-2">Активировать Ленд-Лиз (50 PP)</h3>
+                     <h3 className="text-lg font-bold text-white mb-2">Активировать Ленд-Лиза (50 PP)</h3>
                      <p className="text-xs text-gray-400">Принять западную военную технику. Получить +5000 единиц снаряжения на хабах во Львове.</p>
                   </button>
                   <button onClick={() => handlePolicy('ew')} className="p-4 bg-[#252723] hover:bg-[#2d302b] border border-gray-700 text-left transition-colors">
-                     <h3 className="text-lg font-bold text-white mb-2">Наступательная операция РЭБ (50 PP)</h3>
+                     <h3 className="text-lg font-bold text-white mb-2">Наступательная ... РЭБ (50 PP)</h3>
                      <p className="text-xs text-gray-400">Масштабная радиоэлектронная атака на штабы РФ. Понизить организацию всех вражеских войск на 25% на текущий ход.</p>
                   </button>
                </div>
             </div>
           ) : (
-            <div className="flex-grow p-8" style={{ backgroundColor: HOI_THEME.bg }}>
+            <div className="flex-grow p-8 overflow-y-auto" style={{ backgroundColor: HOI_THEME.bg }}>
                <h2 className="text-2xl font-bold text-amber-500 mb-6 uppercase border-b border-gray-700 pb-2">Управление Воздушным Пространством</h2>
                <div className="grid grid-cols-3 gap-6 mb-8">
                   <div className="p-4 bg-[#252723] border border-gray-700">
@@ -887,19 +836,16 @@ export default function Game() {
           )}
         </div>
 
-        {/* RIGHT PANEL: INSPECTOR */}
-        <div className="w-80 border-l-2 flex flex-col shadow-[-5px_0_15px_rgba(0,0,0,0.5)] z-10" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border }}>
-          
-          {/* ИНФОРМАЦИЯ О СЕКТОРЕ */}
+        {/* ПРАВАЯ ПАНЕЛЬ: ИНСПЕКТОР ОБЪЕКТОВ И ПРИКАЗОВ */}
+        <div className="w-80 border-l-2 flex flex-col h-full shadow-[-5px_0_15px_rgba(0,0,0,0.5)] z-10 shrink-0" style={{ backgroundColor: HOI_THEME.panel, borderColor: HOI_THEME.border }}>
           {uiState.selectedNode ? (
-            <div className="p-4 border-b" style={{ borderColor: HOI_THEME.border, backgroundColor: HOI_THEME.panelLighter }}>
+            <div className="p-4 border-b shrink-0" style={{ borderColor: HOI_THEME.border, backgroundColor: HOI_THEME.panelLighter }}>
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-black text-white uppercase tracking-widest">{uiState.selectedNode.name}</h2>
                 <span className="text-xs font-bold text-yellow-500 font-mono">{uiState.selectedNode.vp} VP</span>
               </div>
-              <div className="text-[10px] text-gray-400 mt-1 uppercase">Регион / {uiState.selectedNode.terrain} / Фортификации: {uiState.selectedNode.fort}%</div>
+              <div className="text-[10px] text-gray-400 mt-1 uppercase">Region / {uiState.selectedNode.terrain} / Фортификации: {uiState.selectedNode.fort}%</div>
               
-              {/* Призыв и Строительство */}
               {uiState.selectedNode.owner === 'ukr' && (
                 <div className="mt-4 space-y-2">
                   <div className="p-2 bg-[#1a1b18] border border-black">
@@ -928,7 +874,6 @@ export default function Game() {
                 </div>
               )}
 
-              {/* Ракетный удар (если узел под контролем РФ) */}
               {uiState.selectedNode.owner === 'rus' && gameState.missiles.ukr > 0 && (
                 <div className="mt-4">
                   <button onClick={() => handleMissileStrike(uiState.selectedNode.id)} className="w-full py-2 bg-red-900/50 hover:bg-red-900 border border-red-700 text-[10px] text-red-200 font-bold uppercase">
@@ -938,10 +883,9 @@ export default function Game() {
               )}
             </div>
           ) : (
-             <div className="p-4 text-xs text-gray-500 text-center border-b border-black">Сектор не выбран</div>
+             <div className="p-4 text-xs text-gray-500 text-center border-b border-black shrink-0">Сектор не выбран</div>
           )}
 
-          {/* ИНФОРМАЦИЯ О ПОДРАЗДЕЛЕНИИ */}
           <div className="flex-grow p-4 overflow-y-auto">
             {uiState.selectedUnit ? (
               <div>
@@ -1003,11 +947,10 @@ export default function Game() {
                  {uiState.selectedUnit.faction === 'ukr' && (
                     <div className="p-3 bg-[#1a1b18] border border-black">
                        <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-3 text-center tracking-widest">Передислокация сил</h4>
-                       
                        <div className="space-y-1 font-mono">
                           {EDGES.filter(e => e[0] === uiState.selectedUnit.location || e[1] === uiState.selectedUnit.location).map((e, idx) => {
                              const targetId = e[0] === uiState.selectedUnit.location ? e[1] : e[0];
-                             const isEnemy = gameState.units.some(u => u.location === targetId && u.faction === 'rus');
+                             const isEnemy = gameState.units.some(u => u.location === targetId && u.faction !== uiState.selectedUnit.faction);
                              
                              return (
                                <button 
@@ -1045,8 +988,8 @@ export default function Game() {
               </div>
             )}
           </div>
-
         </div>
+
       </div>
     </div>
   );
